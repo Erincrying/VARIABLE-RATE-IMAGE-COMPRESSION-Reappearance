@@ -165,14 +165,16 @@ class CAE(nn.Module):
         )
 
     def forward(self, x):
+        # 卷积
         ec1 = self.e_conv_1(x)
         ec2 = self.e_conv_2(ec1)
+        # 二值量化
         eblock1 = self.e_block_1(ec2) + ec2
         eblock2 = self.e_block_2(eblock1) + eblock1
         eblock3 = self.e_block_3(eblock2) + eblock2
         ec3 = self.e_conv_3(eblock3)  # in [-1, 1] from tanh activation
 
-        # stochastic binarization
+        # stochastic binarization随机二值化
         with torch.no_grad():
             rand = torch.rand(ec3.shape).cuda()
             prob = (1 + ec3) / 2
