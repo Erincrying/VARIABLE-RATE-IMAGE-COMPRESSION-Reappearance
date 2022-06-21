@@ -1,5 +1,5 @@
 .idea/
-.vscode/
+# .vscode/
 
 experiments/
 tags
@@ -8,6 +8,7 @@ tags
 __pycache__/
 *.py[cod]
 *$py.class
+datasets
 
 # C extensions
 *.so

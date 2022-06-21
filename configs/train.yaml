@@ -9,6 +9,7 @@ batch_every: 1
 save_every: 10
 epoch_every: 1
 shuffle: true
-dataset_path: /home/alex/workspace/ml-data/cae/datasets/yt_small_720p
+# dataset_path: /home/alex/workspace/ml-data/cae/datasets/yt_small_720p
+dataset_path: /home/ll/code/VARIABLE-RATE-IMAGE-COMPRESSION-Reappearance/src/datasets/yt_small_720p
 num_workers: 2
 device: cuda

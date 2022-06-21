@@ -1,3 +1,12 @@
+# 图像被填充到 1280x768（即 24,24 高度填充）
+# 以便它们可以分成 60 个 128x128 块。
+# 该模型每次前向传递只能看到一个奇异的补丁（即，一个图像有 60 个前向传递和优化步骤）。
+# 损失计算（每个补丁）为MSELoss(orig_patch_ij, out_patch_ij)，我们有每张图像的平均损失。
+
+# 所有模型都实现了随机二值化，
+# 即编码表示为二进制格式。
+# 每个补丁的位数由补丁潜在大小给出
+# 压缩后的大小为60 * bits_per_patch / 8 / 1024KB。
 import os
 import yaml
 import argparse
@@ -29,55 +38,66 @@ def train(cfg: Namespace) -> None:
     logger.info("training: experiment %s" % (cfg.exp_name))
 
     # make dir-tree
-    exp_dir = root_dir / "experiments" / cfg.exp_name
-
+    exp_dir = root_dir / "experiments" / cfg.exp_name # 拼接目录
+    # 创建out、checkpoint、logs三个文件夹
     for d in ["out", "checkpoint", "logs"]:
         os.makedirs(exp_dir / d, exist_ok=True)
 
-    cfg.to_file(exp_dir / "train_config.json")
+    # 读写文件
+    cfg.to_file(exp_dir / "train_config.json") 
 
     # tb tb_writer
     tb_writer = SummaryWriter(exp_dir / "logs")
     logger.info("started tensorboard writer")
 
+    # 实例化对象，加载模型
     model = CAE()
     model.train()
     if cfg.device == "cuda":
         model.cuda()
     logger.info(f"loaded model on {cfg.device}")
 
+    # 加载数据集
     dataloader = DataLoader(
         dataset=ImageFolder720p(cfg.dataset_path),
-        batch_size=cfg.batch_size,
+        batch_size=cfg.batch_size, # train.yaml:16
         shuffle=cfg.shuffle,
         num_workers=cfg.num_workers,
     )
     logger.info(f"loaded dataset from {cfg.dataset_path}")
-
+    
+    # 传入学习率等参数进行梯度下降
     optimizer = optim.Adam(model.parameters(), lr=cfg.learning_rate, weight_decay=1e-5)
+    # 以mse作为损失
     loss_criterion = nn.MSELoss()
 
     avg_loss, epoch_avg = 0.0, 0.0
     ts = 0
 
+    # 计算平均损失与平均epoch（平均epoch为什么要计算？）
     # EPOCHS
     for epoch_idx in range(cfg.start_epoch, cfg.num_epochs + 1):
         # BATCHES
-        for batch_idx, data in enumerate(dataloader, start=1):
-            img, patches, _ = data
+        # enumerate枚举
+        # 将一个可读取的对象传递给enumerate函数，
+        # 他返回一个枚举类型的对象。将其转化为列表后输出元素为元祖（‘序号’，对应元素）的一个列表
+        for batch_idx, data in enumerate(dataloader, start=1): # batchindex,data有三项：0是全为0的list，1是图片tensor，2是地址list
+            img, patches, _ = data # 三项分别对应data的0,1，2
 
             if cfg.device == "cuda":
                 patches = patches.cuda()
 
             avg_loss_per_image = 0.0
+            # 60个patch前向传播
+            # 损失计算（每个补丁）为MSELoss(orig_patch_ij, out_patch_ij)，我们有每张图像的平均损失。
             for i in range(6):
                 for j in range(10):
-                    optimizer.zero_grad()
-
+                    optimizer.zero_grad() # 设置梯度为0
+                    # 送入分批的单个patch，获取重建后的patch，对比进而获得损失
                     x = patches[:, :, i, j, :, :]
                     y = model(x)
                     loss = loss_criterion(y, x)
-
+                    # 计算图片的平均损失
                     avg_loss_per_image += (1 / 60) * loss.item()
 
                     loss.backward()
