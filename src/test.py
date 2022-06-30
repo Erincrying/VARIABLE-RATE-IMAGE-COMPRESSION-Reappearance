@@ -29,14 +29,14 @@ def test(cfg: Namespace) -> None:
     os.makedirs(exp_dir / "out", exist_ok=True)
     cfg.to_file(exp_dir / "test_config.json")
     logger.info(f"[exp dir={exp_dir}]")
-
+    # 加载模型
     model = CAE()
     model.load_state_dict(T.load(cfg.checkpoint))
     model.eval()
     if cfg.device == "cuda":
         model.cuda()
     logger.info(f"[model={cfg.checkpoint}] on {cfg.device}")
-
+    # 这里数据集的图片还是被分成了60个patch
     dataloader = DataLoader(
         dataset=ImageFolder720p(cfg.dataset_path), batch_size=1, shuffle=cfg.shuffle
     )
@@ -52,7 +52,7 @@ def test(cfg: Namespace) -> None:
         if batch_idx % cfg.batch_every == 0:
             pass
 
-        out = T.zeros(6, 10, 3, 128, 128)
+        out = T.zeros(6, 10, 3, 128, 128) # 60个128x128,3通道的patch
         avg_loss = 0
 
         for i in range(6):
